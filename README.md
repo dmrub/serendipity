@@ -9,6 +9,7 @@ TBD.
 
 ## Dependencies
 Serendipity depends on [igraphstore](https://github.com/rmrschub/igraphstore) and the [TopBraid SPIN API](http://topbraid.org/spin/api/).
+
 [SPINderella](https://github.com/rmrschub/spinderella), a REST API to convert between textual SPARQL syntax and the SPIN RDF Vocabulary, comes in handy when building 'affordance recipes'.
 
 
