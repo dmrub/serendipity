@@ -5,7 +5,9 @@ Serendipity is an **Affordance Generator as a Service**.
 TBD.
 
 ## Usage
-TBD.
+```
+mvn clean generate-resources package tomcat7:run
+```
 
 ## Dependencies
 Serendipity depends on [igraphstore](https://github.com/rmrschub/igraphstore) and the [TopBraid SPIN API](http://topbraid.org/spin/api/).

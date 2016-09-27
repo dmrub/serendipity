@@ -15,9 +15,10 @@
 
 	<properties>
 		<graphStore>fuseki</graphStore>
-		<dataEndpoint>http://wks-dmitri.sb.dfki.de:30080/http-proxy/10.254.200.209:80/serendipity/data</dataEndpoint>
-		<queryEndpoint>http://wks-dmitri.sb.dfki.de:30080/http-proxy/10.254.200.209:80/serendipity/sparql</queryEndpoint>
-		<baseURI>http://serendipity</baseURI>
+		<dataEndpoint>http://localhost:3030/serendipity/data</dataEndpoint>
+		<queryEndpoint>http://localhost:3030/serendipity/sparql</queryEndpoint>
+		<baseURI>http://localhost:8083</baseURI>
+		<hostUri>http://localhost:8083</hostUri>
 	</properties>
 
 	<build>
