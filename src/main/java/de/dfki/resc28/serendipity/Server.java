@@ -69,7 +69,6 @@ public class Server extends Application
             p.load(is);
 
             Server.fBaseURI = getProperty(p, "baseURI", "serendipity.baseURI");
-            Server.hostBaseUri = new URI(p.getProperty("hostUri"));
 			Server.serendipity = ResourceFactory.createResource(fBaseURI.toString());
 
             String storage = getProperty(p, "graphStore", "serendipity.graphStore");
