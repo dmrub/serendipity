@@ -195,6 +195,7 @@ public class Service
 		
 		// iterate over all registered recipes
 		System.out.println("Recipes\n" );
+		System.out.println((Server.fGraphStore == null) + "\n" );
 		RDFDataMgr.write(System.out,  Server.fGraphStore.getDefaultGraph(), Lang.TURTLE); 
 		
 		NodeIterator recipeIterator = Server.fGraphStore.getDefaultGraph().listObjectsOfProperty(RDFS.member);
