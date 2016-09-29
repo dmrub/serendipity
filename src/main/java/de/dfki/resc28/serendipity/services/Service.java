@@ -181,8 +181,6 @@ public class Service
 		final Model modelToEnrich = ModelFactory.createDefaultModel();
 		RDFDataMgr.read(modelToEnrich, content, null, RDFLanguages.contentTypeToLang(contentType));
 		
-		System.out.println("Content-type from OLE: " + contentType);
-		System.out.println("Accept-type for OLE: " + acceptType);
 		RDFDataMgr.write(System.out, modelToEnrich, RDFLanguages.contentTypeToLang(contentType));
 		
 		
@@ -194,8 +192,6 @@ public class Service
 		workingModel.add(modelToEnrich);
 		
 		// iterate over all registered recipes
-		System.out.println("Recipes\n" );
-		System.out.println((Server.fGraphStore == null) + "\n" );
 		RDFDataMgr.write(System.out,  Server.fGraphStore.getDefaultGraph(), Lang.TURTLE); 
 		
 		NodeIterator recipeIterator = Server.fGraphStore.getDefaultGraph().listObjectsOfProperty(RDFS.member);
