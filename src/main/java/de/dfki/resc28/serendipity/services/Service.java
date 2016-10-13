@@ -201,8 +201,10 @@ public class Service
 		while(recipeListIterator.hasNext())
 		{
 			System.out.println("Found a recipeList!");
-			RDFList recipeList = (RDFList) recipeListIterator.next();
-			System.out.println(recipeList.getURI());
+			Resource list = (Resource) recipeListIterator.next();
+			System.out.println(list.getURI());
+			RDFList rdfList = list.as( RDFList.class );
+			
 			ApplyFn generate = new ApplyFn() 
 			{
 				public void apply(RDFNode recipe) 
@@ -229,7 +231,7 @@ public class Service
 		    		affordanceModel.add(affordances);
 				}
 			};
-			recipeList.apply(generate);
+			rdfList.apply(generate);
 		}
 		
 //		NodeIterator recipeIterator = Server.fGraphStore.getDefaultGraph().listObjectsOfProperty(RDFS.member);
