@@ -43,10 +43,13 @@ import org.apache.jena.query.Syntax;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.NodeIterator;
+import org.apache.jena.rdf.model.RDFList;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.rdf.model.RDFList.ApplyFn;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.riot.RDFLanguages;
@@ -188,36 +191,71 @@ public class Service
 		final Model affordanceModel = ModelFactory.createDefaultModel();
 		
 		// prepare a model that the affordanceGenerator works on
-		Model workingModel = ModelFactory.createDefaultModel();
+		final Model workingModel = ModelFactory.createDefaultModel();
 		workingModel.add(modelToEnrich);
 		
-		// iterate over all registered recipes
+		// iterate IN ORDER over all registered recipes
 		RDFDataMgr.write(System.out,  Server.fGraphStore.getDefaultGraph(), Lang.TURTLE); 
 		
-		NodeIterator recipeIterator = Server.fGraphStore.getDefaultGraph().listObjectsOfProperty(RDFS.member);
-		while (recipeIterator.hasNext())
+		NodeIterator recipeListIterator = Server.fGraphStore.getDefaultGraph().listObjectsOfProperty(RDFS.member);
+		while(recipeListIterator.hasNext())
 		{
-			workingModel.add(affordanceModel);
-			
-			String recipeUri = recipeIterator.next().asResource().getURI();
-        	Model recipeModel = Server.fGraphStore.getNamedGraph(recipeUri);
-        	
-        	System.out.println(recipeUri);
-        	
-        	Resource queryInstance = SPINFactory.asQuery(recipeModel.listResourcesWithProperty(RDF.type, SP.Construct).next());       	
-        	org.apache.jena.query.Query arq = ARQFactory.get().createQuery((Construct) queryInstance);
-        	PrefixMapping pfxMap = PrefixMapping.Factory.create();
-        	pfxMap.setNsPrefixes(workingModel.getNsPrefixMap());
-        	pfxMap.setNsPrefixes(recipeModel.getNsPrefixMap());
-        	arq.usePrologueFrom(new Prologue(pfxMap));
-        	
-    		QueryExecution qexec = ARQFactory.get().createQueryExecution(arq, workingModel);
+			System.out.println("Found a recipeList!");
+			RDFList recipeList = (RDFList) recipeListIterator.next();
+			System.out.println(recipeList.getURI());
+			ApplyFn generate = new ApplyFn() 
+			{
+				public void apply(RDFNode recipe) 
+				{
+					workingModel.add(affordanceModel);
+					
+					String recipeUri = recipe.asResource().getURI();
+		        	Model recipeModel = Server.fGraphStore.getNamedGraph(recipeUri);
+		        	
+		        	System.out.println(recipeUri);
+		        	
+		        	Resource queryInstance = SPINFactory.asQuery(recipeModel.listResourcesWithProperty(RDF.type, SP.Construct).next());       	
+		        	org.apache.jena.query.Query arq = ARQFactory.get().createQuery((Construct) queryInstance);
+		        	PrefixMapping pfxMap = PrefixMapping.Factory.create();
+		        	pfxMap.setNsPrefixes(workingModel.getNsPrefixMap());
+		        	pfxMap.setNsPrefixes(recipeModel.getNsPrefixMap());
+		        	arq.usePrologueFrom(new Prologue(pfxMap));
+		        	
+		    		QueryExecution qexec = ARQFactory.get().createQueryExecution(arq, workingModel);
 
-    		Model affordances = JenaUtil.createDefaultModel();
-    		affordances = qexec.execConstruct();
-    		
-    		affordanceModel.add(affordances);
+		    		Model affordances = JenaUtil.createDefaultModel();
+		    		affordances = qexec.execConstruct();
+		    		
+		    		affordanceModel.add(affordances);
+				}
+			};
+			recipeList.apply(generate);
 		}
+		
+//		NodeIterator recipeIterator = Server.fGraphStore.getDefaultGraph().listObjectsOfProperty(RDFS.member);
+//		while (recipeIterator.hasNext())
+//		{
+//			workingModel.add(affordanceModel);
+//			
+//			String recipeUri = recipeIterator.next().asResource().getURI();
+//        	Model recipeModel = Server.fGraphStore.getNamedGraph(recipeUri);
+//        	
+//        	System.out.println(recipeUri);
+//        	
+//        	Resource queryInstance = SPINFactory.asQuery(recipeModel.listResourcesWithProperty(RDF.type, SP.Construct).next());       	
+//        	org.apache.jena.query.Query arq = ARQFactory.get().createQuery((Construct) queryInstance);
+//        	PrefixMapping pfxMap = PrefixMapping.Factory.create();
+//        	pfxMap.setNsPrefixes(workingModel.getNsPrefixMap());
+//        	pfxMap.setNsPrefixes(recipeModel.getNsPrefixMap());
+//        	arq.usePrologueFrom(new Prologue(pfxMap));
+//        	
+//    		QueryExecution qexec = ARQFactory.get().createQueryExecution(arq, workingModel);
+//
+//    		Model affordances = JenaUtil.createDefaultModel();
+//    		affordances = qexec.execConstruct();
+//    		
+//    		affordanceModel.add(affordances);
+//		}
 		
 		StreamingOutput out = new StreamingOutput() 
 		{
