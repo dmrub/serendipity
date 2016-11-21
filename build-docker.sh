@@ -135,14 +135,20 @@ if ! type -f git 2> /dev/null; then
     fatal "No git tool detected"
 fi
 
+############### Configuration ###############
+
+APP_NAME=serendipity
+
 JAVA_MAVEN_DEPS=(
     https://github.com/rmrschub/igraphstore
 )
 
 IMAGE_TAG=serendipity
 
+############# End Configuration #############
+
 usage() {
-    echo "Build serendipity application"
+    echo "Build $APP_NAME application"
     echo
     echo "$0 [options]"
     echo "options:"
@@ -194,7 +200,7 @@ while [[ $# > 0 ]]; do
     esac
 done
 
-echo "Serendipity Image Configuration:"
+echo "$APP_NAME Image Configuration:"
 echo "JAVA_MAVEN_DEPS:   ${JAVA_MAVEN_DEPS[@]}"
 echo "IMAGE_TAG:         $IMAGE_TAG"
 echo "NO_CACHE:          $NO_CACHE"
@@ -209,4 +215,8 @@ for ((i = 0; i < ${#JAVA_MAVEN_DEPS[@]}; i++)); do
         fatal "Could not update $repo repository"
 done
 
-docker build -t "$IMAGE_TAG" "$THIS_DIR"
+docker build \
+       --build-arg=APP_NAME=$APP_NAME \
+       -t "$IMAGE_TAG" \
+       "$THIS_DIR" && \
+    echo "Successfully built docker image $IMAGE_TAG"
