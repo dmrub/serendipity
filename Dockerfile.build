@@ -1,0 +1,18 @@
+FROM maven:3.5-jdk-8
+
+ARG APP_NAME=App
+
+COPY . /usr/src/$APP_NAME
+WORKDIR /usr/src/$APP_NAME
+
+RUN set -ex; \
+    for d in deps/*; do \
+      if [ -d "$d" ]; then \
+        ( cd "$d"; mvn clean install); \
+      fi; \
+    done; \
+    mvn compile war:war; \
+    for f in $PWD/target/*.war; do \
+        echo "$f"; exit 0; \
+    done; \
+    exit 1;

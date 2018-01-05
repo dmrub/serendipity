@@ -1,7 +1,9 @@
 #!/bin/bash
 
+THIS_DIR=$( (cd "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P) )
+
 error() {
-    echo >&2 "* Error: $@"
+    echo >&2 "* Error: $*"
 }
 
 fatal() {
@@ -12,6 +14,9 @@ fatal() {
 message() {
     echo "$@"
 }
+
+source "$THIS_DIR/docker-config.sh" || \
+    fatal "Could not load configuration from $THIS_DIR/docker-config.sh"
 
 update-git-repo() {
     # $1   - git repository url
@@ -75,7 +80,7 @@ update-git-repo() {
             '')
                 # Ignore empty argument
                 shift;;
-            *) eval $(devenv_die "updateGitRepo: Unrecognized argument: \"$1\"");
+            *) fatal "updateGitRepo: Unrecognized argument: $1"
                ;;
         esac
         shift
@@ -87,10 +92,11 @@ update-git-repo() {
         message "Selecting ${git_branch:?} branch as HEAD"
     fi
 
-    if [ -e "$source_dir" ]; then
+    if [ -d "$source_dir" ]; then
+        local oldPWD=$PWD
         cd "$source_dir"
 
-        if [ "$git_cmd" = "pull" -a "$git_reset" = "true" ]; then
+        if [[ "$git_cmd" = "pull" && "$git_reset" = "true" ]]; then
             git reset --hard HEAD
         fi
 
@@ -111,9 +117,9 @@ update-git-repo() {
             git "$git_cmd" $git_cmd_opt
             exit_code=$?
         fi
-        cd - &> /dev/null
+        cd "$oldPWD" &> /dev/null
         # simple error check for incomplete git clone
-        if [ $exit_code -ne 0 -a ! -e "$source_dir/.git" ]; then
+        if [[ $exit_code -ne 0 && ! -e "$source_dir/.git" ]]; then
             error "'git $git_cmd $git_cmd_opt' failed !"
             error "Directory $source_dir exists but $source_dir/.git directory missing."
             error "Possibly 'git clone' command failed."
@@ -123,60 +129,52 @@ update-git-repo() {
         message "Cloning $git_url to $source_dir..."
         test "${git_branch}" &&
             message "Selecting ${git_branch:?} branch as HEAD"
+        # shellcheck disable=SC2086
         git clone "$git_url" "$source_dir" $git_clone_opt
         exit_code=$?
     fi
     return $exit_code
 }
 
-THIS_DIR=$(dirname "$(readlink -f "$BASH_SOURCE")")
 
-if ! type -f git 2> /dev/null; then
-    fatal "No git tool detected"
-fi
-
-############### Configuration ###############
-
-APP_NAME=serendipity
-
-JAVA_MAVEN_DEPS=(
-    https://github.com/rmrschub/igraphstore
-)
-
-IMAGE_TAG=serendipity
-
-############# End Configuration #############
+MAVEN_BUILD=false
 
 usage() {
     echo "Build $APP_NAME application"
     echo
     echo "$0 [options]"
     echo "options:"
+    echo "      --maven                Build only with Maven, no Docker build"
+    echo "                             (default: ${MAVEN_BUILD})"
     echo "      --java-deps=           Java Maven project dependencies in"
     echo "                             build order"
-    echo "                             (default ${JAVA_MAVEN_DEPS[@]})"
-    echo "  -t, --tag=                 Image tag"
-    echo "                             (default: $IMAGE_TAG)"
+    echo "                             (default ${JAVA_MAVEN_DEPS[*]})"
+    echo "  -t, --tag=                 Image name and optional tag"
+    echo "                             (default: ${IMAGE_NAME})"
     echo "      --no-cache             Disable Docker cache"
     echo "      --help                 Display this help and exit"
 }
 
-while [[ $# > 0 ]]; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
+        --maven)
+            MAVEN_BUILD=true
+            shift
+            ;;
         --java-deps)
-            JAVA_MAVEN_DEPS=($2)
+            IFS=$' \t\n' read -d '' -r -a JAVA_MAVEN_DEPS <<< "$2"
             shift 2
             ;;
         --java-deps=*)
-            JAVA_MAVEN_DEPS=(${1#*=})
+            IFS=$' \t\n' read -d '' -r -a JAVA_MAVEN_DEPS <<< "${1#*=}"
             shift
             ;;
         -t|--tag)
-            IMAGE_TAG="$2"
+            IMAGE_NAME="$2"
             shift 2
             ;;
         --tag=*)
-            IMAGE_TAG="${1#*=}"
+            IMAGE_NAME="${1#*=}"
             shift
             ;;
         --no-cache)
@@ -201,22 +199,45 @@ while [[ $# > 0 ]]; do
 done
 
 echo "$APP_NAME Image Configuration:"
-echo "JAVA_MAVEN_DEPS:   ${JAVA_MAVEN_DEPS[@]}"
-echo "IMAGE_TAG:         $IMAGE_TAG"
+echo "JAVA_MAVEN_DEPS:   ${JAVA_MAVEN_DEPS[*]}"
+echo "IMAGE_NAME:        $IMAGE_NAME"
+echo "MAVEN_BUILD:       $MAVEN_BUILD"
 echo "NO_CACHE:          $NO_CACHE"
 
-[ ! -d "$THIS_DIR/deps" ] && mkdir -p "$THIS_DIR/deps"
+cleanup() {
+    docker rm "${BUILD_PREFIX}-data" &>/dev/null
+}
 
+trap cleanup INT EXIT
+set -e
+
+# Download dependencies
+mkdir -p "$THIS_DIR/deps"
 for ((i = 0; i < ${#JAVA_MAVEN_DEPS[@]}; i++)); do
     repo="${JAVA_MAVEN_DEPS[i]}"
-    dir_name=$(basename "$repo" .git)
     dir="$THIS_DIR/deps/$(printf '%05d' $i)"
     update-git-repo "$repo" "$dir" --reset --pull || \
         fatal "Could not update $repo repository"
 done
 
-docker build \
-       --build-arg=APP_NAME=$APP_NAME \
-       -t "$IMAGE_TAG" \
-       "$THIS_DIR" && \
-    echo "Successfully built docker image $IMAGE_TAG"
+if [[ "$MAVEN_BUILD" == "true" ]]; then
+    echo "Using maven for building ..."
+    for d in "$THIS_DIR"/deps/*; do
+        if [[ -d "$d" ]]; then
+            (cd "$d"; mvn clean install)
+        fi
+    done
+    (cd "$THIS_DIR"; mvn compile war:war)
+else
+    mkdir -p "$THIS_DIR/target"
+    docker build $NO_CACHE --build-arg "APP_NAME=$APP_NAME" -t "${BUILD_PREFIX}-build" \
+           -f "$THIS_DIR/Dockerfile.build" "$THIS_DIR"
+    docker create -v "/usr/src/${APP_NAME}/target/" --name "${BUILD_PREFIX}-data" "${BUILD_PREFIX}-build" /bin/true
+    rm -rf "$THIS_DIR/target"
+    docker cp "${BUILD_PREFIX}-data:/usr/src/${APP_NAME}/target/" "$THIS_DIR/"
+fi
+
+set -x
+docker build $NO_CACHE --build-arg WAR_FILE="${WAR_FILE}" -t "${IMAGE_NAME}" "$THIS_DIR"
+set +x
+echo "Successfully built docker image $IMAGE_NAME"

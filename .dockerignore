@@ -1,0 +1,12 @@
+# Git repository metadata
+.git
+**/.gitignore
+
+# Backup files
+**/*~
+
+# Files currently being edited by vim or vi
+**/*.swp
+
+Dockerfile*
+LICENSE
