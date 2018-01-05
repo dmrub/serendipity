@@ -10,7 +10,7 @@
 	<groupId>de.dfki.resc28</groupId>
 	<artifactId>serendipity</artifactId>
 	<packaging>war</packaging>
-	<version>0.1</version>
+	<version>0.2</version>
 	<name>serendipity</name>
 
 	<properties>
@@ -79,7 +79,7 @@
 		<dependency>
 			<groupId>de.dfki.resc28</groupId>
 			<artifactId>igraphstore</artifactId>
-			<version>0.1</version>
+			<version>0.2</version>
 		</dependency>
 
 		<dependency>
